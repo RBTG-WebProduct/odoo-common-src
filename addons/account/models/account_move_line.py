@@ -501,7 +501,7 @@ class AccountMoveLine(models.Model):
                        AND line.id != ANY(%(current_ids)s)
                 ),
                 properties AS(
-                    SELECT DISTINCT ON (property.company_id, property.name)
+                    SELECT DISTINCT ON (property.company_id, property.name, property.res_id)
                            'res.partner' AS model,
                            SPLIT_PART(property.res_id, ',', 2)::integer AS id,
                            CASE
@@ -514,7 +514,7 @@ class AccountMoveLine(models.Model):
                      WHERE property.name IN ('property_account_receivable_id', 'property_account_payable_id')
                        AND property.company_id = ANY(%(company_ids)s)
                        AND property.res_id = ANY(%(partners)s)
-                  ORDER BY property.company_id, property.name, account_id
+                  ORDER BY property.company_id, property.name, property.res_id, account_id
                 ),
                 default_properties AS(
                     SELECT DISTINCT ON (property.company_id, property.name)
@@ -1028,9 +1028,9 @@ class AccountMoveLine(models.Model):
                         'price_subtotal': 0.0,
                     },
                 )
-                epd_needed_vals['amount_currency'] -= line.amount_currency * percentage * line_percentage
-                epd_needed_vals['balance'] -= line.balance * percentage * line_percentage
-                epd_needed_vals['price_subtotal'] -= line.price_subtotal * percentage * line_percentage
+                epd_needed_vals['amount_currency'] -= line.currency_id.round(line.amount_currency * percentage * line_percentage)
+                epd_needed_vals['balance'] -= line.currency_id.round(line.balance * percentage * line_percentage)
+                epd_needed_vals['price_subtotal'] -= line.currency_id.round(line.price_subtotal * percentage * line_percentage)
                 epd_needed_vals = epd_needed.setdefault(
                     frozendict({
                         'move_id': line.move_id.id,
@@ -1045,9 +1045,9 @@ class AccountMoveLine(models.Model):
                         'tax_ids': [Command.clear()],
                     },
                 )
-                epd_needed_vals['amount_currency'] += line.amount_currency * percentage * line_percentage
-                epd_needed_vals['balance'] += line.balance * percentage * line_percentage
-                epd_needed_vals['price_subtotal'] += line.price_subtotal * percentage * line_percentage
+                epd_needed_vals['amount_currency'] += line.currency_id.round(line.amount_currency * percentage * line_percentage)
+                epd_needed_vals['balance'] += line.currency_id.round(line.balance * percentage * line_percentage)
+                epd_needed_vals['price_subtotal'] += line.currency_id.round(line.price_subtotal * percentage * line_percentage)
             line.epd_needed = {k: frozendict(v) for k, v in epd_needed.items()}
 
     @api.depends('move_id.move_type', 'balance', 'tax_repartition_line_id', 'tax_ids')
